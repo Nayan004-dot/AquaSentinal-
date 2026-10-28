@@ -136,6 +136,16 @@ def test_cpcb_allowlist_and_categorical_observations(surface_water):
     assert result["parameters"]["Odour"]["observed_categories"] == {"Odourless": 2}
     assert result["parameters"]["Turbidity (NTU)"]["measurement_count"] == 0
     assert result["parameters"]["Turbidity (NTU)"]["mean"] is None
+    conductivity = result["parameters"]["Electric Conductivity (μS/cm)"]
+    assert result["latest_sample_date"] == "2021-01-07"
+    assert conductivity["latest_measurement_date"] == "2021-01-06"
+    assert conductivity["measurement_age_days"] == 26
+    assert conductivity["stale_measurement"] is False
+    assert conductivity["measurement_status"] == "available"
+    assert result["parameters"]["Turbidity (NTU)"]["latest_measurement_date"] is None
+    assert result["parameters"]["Turbidity (NTU)"]["measurement_age_days"] is None
+    assert result["parameters"]["Turbidity (NTU)"]["stale_measurement"] is None
+    assert result["parameters"]["Turbidity (NTU)"]["measurement_status"] == "no_valid_measurements"
 
 
 def test_missing_measurement_columns_reported_and_actual_allowlists_differ(groundwater, surface_water):
@@ -188,15 +198,28 @@ def test_trace_metal_zeros_are_preserved_and_blanks_remain_missing(tmp_path):
 
     result = get_historical_profile(path, "groundwater", "Kadipur", as_of="2021-05-30")
     params = result["parameters"]
+    assert result["latest_sample_date"] == "2021-05-30"
     for name in ("Total Dissolved Solids (mg/L)", "Total Alkalinity (mg/L as CaCO3)", "Iron(mg/L)", "Arsenic (mg/L)", "Carbonate (mg/L)"):
         assert params[name]["measurement_count"] == 1
         assert params[name]["missing_count"] == 1
         assert params[name]["mean"] == 0.0
         assert params[name]["zero_count"] == 1
+    arsenic = params["Arsenic (mg/L)"]
+    assert arsenic["latest_measurement_date"] == "2018-05-25"
+    assert arsenic["measurement_age_days"] == 1101
+    assert arsenic["stale_measurement"] is True
+    assert "stale_measurement" in arsenic["measurement_quality_flags"]
+    assert params["Carbonate (mg/L)"]["latest_measurement_date"] == "2021-05-30"
+    assert params["Carbonate (mg/L)"]["measurement_age_days"] == 0
+    assert params["Carbonate (mg/L)"]["stale_measurement"] is False
     assert params["Lead (mg/L)"]["measurement_count"] == 0
     assert params["Lead (mg/L)"]["missing_count"] == 2
     assert params["Lead (mg/L)"]["mean"] is None
     assert params["Lead (mg/L)"]["zero_count"] == 0
+    assert params["Lead (mg/L)"]["latest_measurement_date"] is None
+    assert params["Lead (mg/L)"]["measurement_age_days"] is None
+    assert params["Lead (mg/L)"]["stale_measurement"] is None
+    assert params["Lead (mg/L)"]["measurement_status"] == "no_valid_measurements"
     diag = result["zero_value_diagnostics"]["trace_metal_parameters_with_zero_values"]
     assert diag == [{"parameter": "Iron(mg/L)", "zero_count": 1},
                     {"parameter": "Arsenic (mg/L)", "zero_count": 1}]
@@ -211,3 +234,30 @@ def test_trace_metal_zeros_are_preserved_and_blanks_remain_missing(tmp_path):
     assert lead_zero["zero_value_diagnostics"]["trace_metal_parameters_with_zero_values"] == [
         {"parameter": "Lead (mg/L)", "zero_count": 1}
     ]
+
+
+def test_parameter_age_uses_only_valid_values_and_handles_missing_dates(tmp_path):
+    path = tmp_path / "parameter_dates.csv"
+    pd.DataFrame({
+        "Station": ["Mixed", "Mixed"],
+        "Data Acquisition Time": ["2020-01-01", "invalid-date"],
+        "Potential of Hydrogen (pH)": [6.5, 7.0],
+    }).to_csv(path, index=False)
+    mixed = get_historical_profile(path, "groundwater", "Mixed", as_of="2022-01-01")
+    ph = mixed["parameters"]["Potential of Hydrogen (pH)"]
+    assert ph["measurement_count"] == 2
+    assert ph["latest_measurement_date"] == "2020-01-01"
+    assert ph["measurement_age_days"] == 731
+    assert ph["stale_measurement"] is None
+    assert ph["measurement_status"] == "partial_measurement_dates"
+    assert ph["measurement_date_missing_count"] == 1
+
+    pd.DataFrame({"Station": ["Undated"], "Data Acquisition Time": ["invalid-date"],
+                  "Potential of Hydrogen (pH)": [6.5]}).to_csv(path, index=False)
+    undated = get_historical_profile(path, "groundwater", "Undated", as_of="2022-01-01")
+    undated_ph = undated["parameters"]["Potential of Hydrogen (pH)"]
+    assert undated_ph["measurement_count"] == 1
+    assert undated_ph["latest_measurement_date"] is None
+    assert undated_ph["measurement_age_days"] is None
+    assert undated_ph["stale_measurement"] is None
+    assert undated_ph["measurement_status"] == "measurement_date_unavailable"

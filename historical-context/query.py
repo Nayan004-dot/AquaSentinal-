@@ -72,6 +72,7 @@ def format_readable(result: dict[str, Any], dataset_path: Path) -> str:
         f"Match level: {_display(level)}",
         f"Matched field: {_display(profile['matched_column'])}",
         f"Observations: {profile['sample_count']}",
+        f"Reference date (UTC): {_display(profile['reference_date'])}",
         f"Earliest valid sample date: {_display(profile['earliest_sample_date'])}",
         f"Latest valid sample date: {_display(profile['latest_sample_date'])}",
         f"Age of latest sample (days): {_display(profile['record_age_days'])}",
@@ -88,7 +89,21 @@ def format_readable(result: dict[str, Any], dataset_path: Path) -> str:
             f"  {name} [{unit}]",
             f"    Valid measurements: {summary['measurement_count']}",
             f"    Missing measurements: {summary['missing_count']}",
+            f"    Latest valid measurement date: {_display(summary['latest_measurement_date'])}",
+            f"    Measurement age (days): {_display(summary['measurement_age_days'])}",
+            f"    Stale measurement: {_display(summary['stale_measurement'])}",
         ])
+        if summary["measurement_status"] == "no_valid_measurements":
+            lines.append("    Measurement status: no valid measurement; date and staleness cannot be assessed.")
+        elif summary["measurement_status"] == "measurement_date_unavailable":
+            lines.append("    Measurement status: value(s) exist, but no valid measurement date is available.")
+        elif summary["measurement_status"] == "partial_measurement_dates":
+            lines.append("    Measurement status: some valid values have no dates; age and staleness may be incomplete.")
+        for measurement_flag in summary["measurement_quality_flags"]:
+            if measurement_flag == "stale_measurement":
+                lines.append("    WARNING: this parameter's latest valid measurement is more than 365 days old.")
+            else:
+                lines.append(f"    Measurement flag: {measurement_flag}")
         if summary["observed_categories"] is not None:
             categories = summary["observed_categories"]
             lines.append("    Observed categories: " + (", ".join(f"{key}: {count}" for key, count in categories.items()) or "N/A"))
