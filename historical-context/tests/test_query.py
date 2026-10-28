@@ -10,16 +10,23 @@ def example_profile(**overrides):
         "requested_location": "River Station", "match_level": "station",
         "matched_column": "Station", "sample_count": 2, "candidate_sample_count": 2,
         "earliest_sample_date": "2021-01-06", "latest_sample_date": "2021-01-07",
-        "record_age_days": 10, "date_column": "Data Acquisition Time",
+        "record_age_days": 10, "reference_date": "2021-01-17",
+        "date_column": "Data Acquisition Time",
         "date_missing_count": 0,
         "parameters": {
             "Electric Conductivity (μS/cm)": {
                 "unit": "μS/cm", "measurement_count": 1, "missing_count": 1,
+                "latest_measurement_date": "2021-01-06", "measurement_age_days": 11,
+                "stale_measurement": False, "measurement_status": "available",
+                "measurement_date_missing_count": 0, "measurement_quality_flags": [],
                 "mean": 10.0, "median": 10.0, "min": 10.0, "max": 10.0,
                 "std": None, "observed_categories": None,
             },
             "Colour": {
                 "unit": None, "measurement_count": 2, "missing_count": 0,
+                "latest_measurement_date": "2021-01-07", "measurement_age_days": 10,
+                "stale_measurement": False, "measurement_status": "available",
+                "measurement_date_missing_count": 0, "measurement_quality_flags": [],
                 "mean": None, "median": None, "min": None, "max": None,
                 "std": None, "observed_categories": {"Clear": 2},
             },
@@ -98,6 +105,8 @@ def test_readable_output_includes_statistics_categories_and_limitations(monkeypa
         "Source agency: CPCB", "Match result: MATCHED", "Earliest valid sample date:",
         "Latest valid sample date:", "Valid measurements: 1", "Missing measurements: 1",
         "Mean: 10", "Median: 10", "Minimum: 10", "Maximum: 10",
+        "Latest valid measurement date: 2021-01-06", "Measurement age (days): 11",
+        "Stale measurement: False",
         "WARNING: the latest available sample is more than 365 days old.",
         "Standard deviation: N/A", "Observed categories: Clear: 2",
         "historical observations", "does not prove geographic proximity",
@@ -114,6 +123,24 @@ def test_json_output_is_machine_readable(monkeypatch, capsys):
     assert out["profile"]["dataset_agency"] == "CPCB"
     assert out["profile"]["parameters"]["Colour"]["observed_categories"] == {"Clear": 2}
     assert Path(out["dataset_path"]).is_absolute()
+
+
+def test_readable_output_explains_no_valid_measurement(monkeypatch, capsys):
+    profile = example_profile()
+    profile["parameters"]["Electric Conductivity (μS/cm)"].update({
+        "measurement_count": 0, "missing_count": 2, "latest_measurement_date": None,
+        "measurement_age_days": None, "stale_measurement": None,
+        "measurement_status": "no_valid_measurements", "measurement_quality_flags": ["no_valid_measurements"],
+        "measurement_date_missing_count": 0, "mean": None, "median": None,
+        "min": None, "max": None, "std": None,
+    })
+    monkeypatch.setattr(query, "get_historical_profile", lambda *a, **k: profile)
+    query.main(["--source", "surface_water", "--location", "River Station"])
+    out = capsys.readouterr().out
+    assert "Latest valid measurement date: N/A" in out
+    assert "Measurement age (days): N/A" in out
+    assert "Stale measurement: N/A" in out
+    assert "no valid measurement; date and staleness cannot be assessed" in out
 
 
 def test_missing_csv_and_invalid_arguments_have_clear_errors(tmp_path, capsys):

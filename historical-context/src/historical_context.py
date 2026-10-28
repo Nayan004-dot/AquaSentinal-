@@ -176,7 +176,8 @@ def _empty_profile(source_type: str, requested: str, *, match_level: str = "unma
                    candidate_sample_count: int = 0,
                    measurement_columns_present: list[str] | None = None,
                    measurement_columns_missing: list[str] | None = None,
-                   date_column: str | None = None) -> dict[str, Any]:
+                   date_column: str | None = None,
+                   reference_date: str | None = None) -> dict[str, Any]:
     return {
         "source_type": source_type, "dataset_agency": SOURCE_DATASETS[source_type],
         "requested_location": requested, "match_level": match_level,
@@ -184,7 +185,7 @@ def _empty_profile(source_type: str, requested: str, *, match_level: str = "unma
         "candidate_sample_count": candidate_sample_count,
         "earliest_sample_date": None, "latest_sample_date": None,
         "record_age_days": None, "date_missing_count": None,
-        "date_column": date_column,
+        "date_column": date_column, "reference_date": reference_date,
         "parameters": {}, "ambiguous_candidates": candidates or [],
         "zero_value_diagnostics": {
             "trace_metal_parameters_with_zero_values": [],
@@ -218,6 +219,7 @@ def get_historical_profile(
         raise ValueError("location must not be empty")
     requested = location.strip()
     reference = _reference_date(as_of)
+    reference_date = reference.date().isoformat()
     df = load_csv(csv_path)
 
     flags: list[str] = []
@@ -242,7 +244,8 @@ def get_historical_profile(
         flags.append("empty_dataset")
         return _empty_profile(source_type, requested, flags=flags,
                               measurement_columns_present=present_measurements,
-                              measurement_columns_missing=missing_measurements, date_column=date_col)
+                              measurement_columns_missing=missing_measurements, date_column=date_col,
+                              reference_date=reference_date)
 
     matched_column = None
     matched_rows = df.iloc[0:0]
@@ -260,7 +263,8 @@ def get_historical_profile(
         flags.append("unmatched_location")
         return _empty_profile(source_type, requested, flags=flags,
                               measurement_columns_present=present_measurements,
-                              measurement_columns_missing=missing_measurements, date_column=date_col)
+                              measurement_columns_missing=missing_measurements, date_column=date_col,
+                              reference_date=reference_date)
 
     if matched_column.casefold() == "station":
         identities = _station_candidates(matched_rows)
@@ -271,6 +275,7 @@ def get_historical_profile(
                 flags=flags, candidates=identities, candidate_sample_count=len(matched_rows),
                 measurement_columns_present=present_measurements,
                 measurement_columns_missing=missing_measurements, date_column=date_col,
+                reference_date=reference_date,
             )
 
     row_dates = dates.loc[matched_rows.index]
@@ -302,6 +307,34 @@ def get_historical_profile(
         finite_mask = numeric.map(lambda value: pd.notna(value) and math.isfinite(float(value)))
         valid = numeric[finite_mask]
         is_categorical = col.strip().casefold() in {"colour", "odour"}
+        valid_measurement_mask = series.notna() if is_categorical else finite_mask
+        measurement_count = int(valid_measurement_mask.sum())
+        measurement_valid_dates = row_dates.loc[valid_measurement_mask].dropna()
+        measurement_date_missing_count = int((valid_measurement_mask & row_dates.isna()).sum())
+        measurement_flags: list[str] = []
+        latest_measurement_date = None
+        measurement_age_days = None
+        stale_measurement = None
+        if measurement_count == 0:
+            measurement_status = "no_valid_measurements"
+            measurement_flags.append("no_valid_measurements")
+        elif measurement_valid_dates.empty:
+            measurement_status = "measurement_date_unavailable"
+            measurement_flags.append("measurement_date_unavailable")
+        else:
+            latest_measurement = measurement_valid_dates.max()
+            latest_measurement_date = latest_measurement.date().isoformat()
+            measurement_age_days = int((reference - latest_measurement.normalize()).days)
+            if measurement_date_missing_count:
+                measurement_status = "partial_measurement_dates"
+                measurement_flags.append("measurement_dates_missing")
+            else:
+                measurement_status = "available"
+                stale_measurement = measurement_age_days > STALE_AFTER_DAYS
+            if stale_measurement is True:
+                measurement_flags.append("stale_measurement")
+            if measurement_age_days < 0:
+                measurement_flags.append("measurement_after_reference")
         if not is_categorical:
             missing_count = int((~finite_mask).sum())
         zero_count = int((valid == 0).sum()) if not is_categorical else None
@@ -312,6 +345,12 @@ def get_historical_profile(
             "measurement_count": int(series.notna().sum()) if is_categorical else int(valid.size),
             "missing_count": missing_count,
             "zero_count": zero_count,
+            "latest_measurement_date": latest_measurement_date,
+            "measurement_age_days": measurement_age_days,
+            "stale_measurement": stale_measurement,
+            "measurement_status": measurement_status,
+            "measurement_date_missing_count": measurement_date_missing_count,
+            "measurement_quality_flags": measurement_flags,
             "mean": _finite_number(valid.mean()) if not valid.empty else None,
             "median": _finite_number(valid.median()) if not valid.empty else None,
             "min": _finite_number(valid.min()) if not valid.empty else None,
@@ -334,7 +373,7 @@ def get_historical_profile(
         "candidate_sample_count": int(len(matched_rows)),
         "earliest_sample_date": earliest_date, "latest_sample_date": latest_date,
         "record_age_days": record_age_days,
-        "date_column": date_col,
+        "date_column": date_col, "reference_date": reference_date,
         "date_missing_count": date_missing_count, "parameters": parameters,
         "zero_value_diagnostics": {
             "trace_metal_parameters_with_zero_values": trace_metal_zero_values,
