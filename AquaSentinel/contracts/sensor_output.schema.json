@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "required": [
+    "measurement_point",
+    "readings",
+    "deviations",
+    "anomaly_flags",
+    "sensor_status"
+  ],
+  "properties": {
+    "timestamp": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "measurement_point": {
+      "type": "string",
+      "enum": [
+        "inlet",
+        "outlet",
+        "unknown"
+      ]
+    },
+    "readings": {
+      "type": "object",
+      "properties": {
+        "ph": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "ec_us_cm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "turbidity_ntu": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperature_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "deviations": {
+      "type": "object",
+      "description": "Document units and formula for each feature."
+    },
+    "anomaly_flags": {
+      "type": "object",
+      "description": "Per-parameter flags and reasons."
+    },
+    "sensor_status": {
+      "type": "string",
+      "enum": [
+        "valid",
+        "partial",
+        "invalid",
+        "test_data"
+      ]
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

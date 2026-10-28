@@ -1,0 +1,17 @@
+{
+  "measurement_point": "inlet",
+  "source_type": null,
+  "units": {
+    "ph": "pH",
+    "ec_us_cm": "uS/cm",
+    "turbidity_ntu": "NTU",
+    "temperature_c": "degC"
+  },
+  "baseline_values": {
+    "ph": null,
+    "ec_us_cm": null,
+    "turbidity_ntu": null,
+    "temperature_c": null
+  },
+  "notes": "Replace nulls with measured or explicitly selected reference values; record calibration and measurement conditions."
+}

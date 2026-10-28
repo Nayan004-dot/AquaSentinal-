@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "required": [
+    "source_type",
+    "location_match_level",
+    "matched_location",
+    "parameters",
+    "data_quality"
+  ],
+  "properties": {
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "groundwater",
+        "surface_water"
+      ]
+    },
+    "location_match_level": {
+      "type": "string",
+      "enum": [
+        "station",
+        "waterbody",
+        "district",
+        "state",
+        "unmatched"
+      ]
+    },
+    "matched_location": {
+      "type": "object",
+      "description": "Station/location identifiers and coordinates where available."
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Per-parameter units, sample count, summary statistics, latest sample date and supported exceedance statistics."
+    },
+    "data_quality": {
+      "type": "object",
+      "properties": {
+        "record_count": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "latest_sample_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+.env
+.vscode/
+.idea/
+.DS_Store
+# Raw data: document sources; avoid committing large files
+data/raw/*
+!data/raw/README.md
+*.csv
+*.xlsx
+*.zip
+# Model artifacts
+*.joblib
+*.pkl
+*.onnx
+*.tflite
+models/*
+!models/README.md
