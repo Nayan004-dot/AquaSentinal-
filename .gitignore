@@ -24,3 +24,9 @@ models/*
 
 # Local water-quality datasets
 historical-context/datasets/raw/*.csv
+*.sqlite3
+*.db
+
+# Local SSH keys - never commit
+/aquassh
+/aquassh.pub
