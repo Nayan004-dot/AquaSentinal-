@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquasentinel.example/contracts/outlet_sensor_telemetry.schema.json",
+  "title": "AquaSentinel Outlet Sensor Telemetry",
+  "description": "One ESP32 telemetry sample containing treated-water outlet sensor measurements. Example contract; replace the example host with the project's actual documentation host if published.",
+  "type": "object",
+  "required": ["device_id", "sequence", "timestamp", "measurement_point", "outlet"],
+  "properties": {
+    "device_id": {"type": "string", "minLength": 1},
+    "sequence": {"type": "integer", "minimum": 0},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "measurement_point": {"const": "outlet"},
+    "firmware_version": {"type": ["string", "null"]},
+    "outlet": {
+      "type": "object",
+      "required": ["tds", "ph", "turbidity", "temperature"],
+      "properties": {
+        "tds": {"$ref": "#/$defs/measurementTds"},
+        "ph": {"$ref": "#/$defs/measurementPh"},
+        "turbidity": {"$ref": "#/$defs/measurementTurbidity"},
+        "temperature": {"$ref": "#/$defs/measurementTemperature"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "baseMeasurement": {
+      "type": "object",
+      "required": ["value", "unit", "status", "calibrated"],
+      "properties": {
+        "value": {"type": ["number", "null"]},
+        "unit": {"type": "string"},
+        "status": {"type": "string", "enum": ["valid", "invalid", "disconnected", "warming_up", "unavailable"]},
+        "calibrated": {"type": ["boolean", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "measurementTds": {
+      "allOf": [
+        {"$ref": "#/$defs/baseMeasurement"},
+        {"properties": {"unit": {"const": "ppm"}}}
+      ]
+    },
+    "measurementPh": {
+      "allOf": [
+        {"$ref": "#/$defs/baseMeasurement"},
+        {"properties": {"unit": {"const": "pH"}}}
+      ]
+    },
+    "measurementTurbidity": {
+      "allOf": [
+        {"$ref": "#/$defs/baseMeasurement"},
+        {"properties": {"unit": {"enum": ["NTU", "raw"]}}}
+      ]
+    },
+    "measurementTemperature": {
+      "allOf": [
+        {"$ref": "#/$defs/baseMeasurement"},
+        {"properties": {"unit": {"const": "C"}}}
+      ]
+    }
+  },
+  "additionalProperties": false
+}
