@@ -21,3 +21,6 @@ data/raw/*
 *.tflite
 models/*
 !models/README.md
+
+# Local water-quality datasets
+historical-context/datasets/raw/*.csv
